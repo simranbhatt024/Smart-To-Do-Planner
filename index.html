@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart To-Do Planner</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Tailwind Config for Font -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            pop: ['Poppins', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+
+  <!-- flatpickr CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+</head>
+<body class="bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-600 text-white font-pop min-h-screen transition-all duration-300">
+
+  <!-- Notification -->
+  <div id="notification" class="fixed top-5 right-5 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg hidden z-50"></div>
+
+  <!-- Login Modal -->
+  <div id="loginModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-40">
+    <div class="bg-white text-black p-8 rounded-lg w-full max-w-md shadow-xl">
+      <h2 class="text-2xl font-bold mb-4">🔐 Login</h2>
+      <input type="text" id="username" placeholder="Enter username" class="w-full mb-4 p-3 border rounded-md" />
+      <button id="loginBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md w-full font-semibold">Login</button>
+    </div>
+  </div>
+
+  <!-- Container -->
+  <div id="appContent" class="max-w-4xl mx-auto p-6 hidden">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-4xl font-bold drop-shadow-lg">📝 Smart To-Do Planner</h1>
+      <div class="space-x-2">
+        <button id="toggleTheme" class="bg-white text-gray-800 px-4 py-2 rounded-full font-semibold shadow hover:bg-gray-100 transition">🌙</button>
+        <button id="logoutBtn" class="bg-red-600 text-white px-4 py-2 rounded-full font-semibold shadow hover:bg-red-700 transition">Logout</button>
+      </div>
+    </div>
+
+    <!-- Form -->
+    <div class="bg-white/10 backdrop-blur-md p-6 rounded-xl shadow-lg">
+      <form id="taskForm" class="space-y-4">
+        <input id="taskInput" type="text" placeholder="What do you want to do?" class="w-full border-none p-3 rounded-md text-black placeholder-gray-500" required />
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <select id="prioritySelect" class="w-full border-none p-3 rounded-md text-black">
+            <option value="high">🔴 High Priority</option>
+            <option value="medium">🟡 Medium Priority</option>
+            <option value="low">🟢 Low Priority</option>
+          </select>
+
+          <input id="dueDate" type="text" placeholder="Pick Due Date 🗓️" class="w-full border-none p-3 rounded-md text-black" required />
+        </div>
+
+        <input id="subtasksInput" type="text" placeholder="Add subtasks (comma separated)" class="w-full border-none p-3 rounded-md text-black placeholder-gray-500" />
+
+        <button type="submit" class="bg-pink-500 hover:bg-pink-600 transition text-white font-semibold px-4 py-3 rounded-lg w-full shadow-lg">➕ Add Task</button>
+      </form>
+    </div>
+
+    <!-- Filter and Search -->
+    <div class="mt-6 flex flex-col md:flex-row justify-between gap-4">
+      <input id="searchInput" type="text" placeholder="Search tasks..." class="w-full md:w-1/2 p-3 rounded-md text-black placeholder-gray-500">
+      <select id="filterSelect" class="w-full md:w-1/3 p-3 rounded-md text-black">
+        <option value="all">All</option>
+        <option value="today">Today</option>
+        <option value="upcoming">Upcoming</option>
+        <option value="completed">Completed</option>
+      </select>
+    </div>
+
+    <!-- Task List -->
+    <div class="mt-8">
+      <h2 class="text-2xl font-semibold mb-4">📌 Your Tasks</h2>
+      <ul id="taskList" class="space-y-4"></ul>
+    </div>
+  </div>
+
+  <!-- flatpickr -->
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+  <!-- Script -->
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const loginModal = document.getElementById("loginModal");
+      const loginBtn = document.getElementById("loginBtn");
+      const usernameInput = document.getElementById("username");
+      const appContent = document.getElementById("appContent");
+      const notification = document.getElementById("notification");
+      const logoutBtn = document.getElementById("logoutBtn");
+
+      function showNotification(message, duration = 3000) {
+        notification.textContent = message;
+        notification.classList.remove("hidden");
+        setTimeout(() => notification.classList.add("hidden"), duration);
+      }
+
+      loginBtn.addEventListener("click", () => {
+        const username = usernameInput.value.trim();
+        if (username) {
+          loginModal.classList.add("hidden");
+          appContent.classList.remove("hidden");
+          localStorage.setItem("smartUsername", username);
+          showNotification(`Welcome, ${username}!`);
+        } else {
+          alert("Please enter a username");
+        }
+      });
+
+      logoutBtn.addEventListener("click", () => {
+        localStorage.removeItem("smartUsername");
+        appContent.classList.add("hidden");
+        loginModal.classList.remove("hidden");
+        usernameInput.value = "";
+        showNotification("👋 Logged out successfully!");
+      });
+
+      if (localStorage.getItem("smartUsername")) {
+        loginModal.classList.add("hidden");
+        appContent.classList.remove("hidden");
+      }
+
+      const taskForm = document.getElementById("taskForm");
+      const taskInput = document.getElementById("taskInput");
+      const prioritySelect = document.getElementById("prioritySelect");
+      const dueDateInput = document.getElementById("dueDate");
+      const subtasksInput = document.getElementById("subtasksInput");
+      const taskList = document.getElementById("taskList");
+      const toggleTheme = document.getElementById("toggleTheme");
+      const searchInput = document.getElementById("searchInput");
+      const filterSelect = document.getElementById("filterSelect");
+
+      let tasks = JSON.parse(localStorage.getItem("smartTasks")) || [];
+
+      flatpickr("#dueDate", { minDate: "today", dateFormat: "Y-m-d" });
+
+      const saveTasks = () => localStorage.setItem("smartTasks", JSON.stringify(tasks));
+
+      const getBadgeColor = (priority) => {
+        if (priority === "high") return "bg-red-500";
+        if (priority === "medium") return "bg-yellow-400";
+        return "bg-green-500";
+      };
+
+      const renderTasks = () => {
+        const filter = filterSelect.value;
+        const search = searchInput.value.toLowerCase();
+        taskList.innerHTML = "";
+
+        tasks
+          .filter(task => {
+            const matchesSearch = task.title.toLowerCase().includes(search);
+            const dueDate = new Date(task.dueDate);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            if (filter === "today") return matchesSearch && dueDate.getTime() === today.getTime();
+            if (filter === "upcoming") return matchesSearch && dueDate.getTime() > today.getTime();
+            if (filter === "completed") return matchesSearch && task.completed;
+            return matchesSearch;
+          })
+          .forEach((task, index) => {
+            const li = document.createElement("li");
+            li.className = "bg-white/20 backdrop-blur-md p-4 rounded-lg shadow-md flex flex-col hover:scale-[1.02] transition";
+
+            let subtasksHTML = "";
+            if (task.subtasks.length) {
+              subtasksHTML = `<details class='mt-2'><summary class='cursor-pointer'>📂 Subtasks</summary><ul class='ml-4 mt-2 list-disc'>${task.subtasks.map(st => `<li>${st.trim()}</li>`).join('')}</ul></details>`;
+            }
+
+            li.innerHTML = `
+              <div class="flex justify-between">
+                <div>
+                  <h3 class="text-xl font-semibold text-white drop-shadow ${task.completed ? 'line-through' : ''}">${task.title}</h3>
+                  <p class="text-sm text-gray-200">Due: ${task.dueDate}</p>
+                  <span class="inline-block mt-1 px-2 py-1 text-xs font-medium rounded-full text-white ${getBadgeColor(task.priority)}">${task.priority.toUpperCase()}</span>
+                </div>
+                <div class="space-x-2">
+                  <button onclick="completeTask(${index})" class="text-green-300 hover:text-green-500 text-2xl transition">✅</button>
+                  <button onclick="deleteTask(${index})" class="text-red-300 hover:text-red-500 text-2xl transition">🗑️</button>
+                </div>
+              </div>
+              ${subtasksHTML}
+            `;
+            taskList.appendChild(li);
+          });
+      };
+
+      taskForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const newTask = {
+          title: taskInput.value.trim(),
+          priority: prioritySelect.value,
+          dueDate: dueDateInput.value,
+          subtasks: subtasksInput.value ? subtasksInput.value.split(",") : [],
+          completed: false
+        };
+        tasks.push(newTask);
+        saveTasks();
+        renderTasks();
+        taskInput.value = dueDateInput.value = subtasksInput.value = "";
+        showNotification("✅ Task added successfully!");
+      });
+
+      window.completeTask = function (index) {
+        tasks[index].completed = true;
+        saveTasks();
+        renderTasks();
+        showNotification("✔️ Task marked as completed");
+      };
+
+      window.deleteTask = function (index) {
+        tasks.splice(index, 1);
+        saveTasks();
+        renderTasks();
+        showNotification("🗑️ Task deleted");
+      };
+
+      toggleTheme.addEventListener("click", () => {
+        document.body.classList.toggle("from-purple-600");
+        document.body.classList.toggle("to-blue-600");
+        document.body.classList.toggle("from-gray-900");
+        document.body.classList.toggle("to-gray-800");
+      });
+
+      searchInput.addEventListener("input", renderTasks);
+      filterSelect.addEventListener("change", renderTasks);
+
+      renderTasks();
+    });
+  </script>
+</body>
+</html>
